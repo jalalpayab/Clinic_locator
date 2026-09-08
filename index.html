@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSI Afghanistan - Interactive Clinic Locator</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Smooth scrollbar for sidebar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.8);
+        }
+
+        /* Custom Leaflet Map Controls Modernization */
+        .leaflet-popup-content-wrapper {
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            padding: 4px;
+        }
+        .leaflet-popup-tip {
+            background: #0f172a;
+        }
+        
+        /* Accordion transition utility */
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .accordion-content.open {
+            max-height: 1000px;
+        }
+        
+        .arrow-icon {
+            transition: transform 0.3s ease;
+        }
+        .arrow-icon.rotate {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen w-screen flex overflow-hidden">
+
+    <aside id="sidebar" class="w-80 md:w-96 bg-slate-900/90 backdrop-blur-xl border-r border-slate-800/80 flex flex-col h-full z-20 shadow-2xl relative transition-all duration-300">
+        
+        <div class="p-5 border-b border-slate-800 bg-slate-950/40">
+            <div class="flex items-center space-x-3 mb-3">
+                <div class="w-3 h-3 rounded-full bg-indigo-500 animate-pulse"></div>
+                <h1 class="text-lg font-bold tracking-wide text-white">MSI Afghanistan</h1>
+            </div>
+            <p class="text-xs text-slate-400 mb-4">Interactive Health Center & Clinic Directory</p>
+            
+            <div class="relative">
+                <input type="text" id="searchInput" onkeyup="filterLocations()" placeholder="Search province, clinic, address..." 
+                       class="w-full bg-slate-800/80 text-xs text-slate-200 placeholder-slate-500 pl-9 pr-4 py-2.5 rounded-lg border border-slate-700/60 focus:outline-none focus:border-indigo-500 transition-all">
+                <svg class="w-4 h-4 text-slate-500 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+        </div>
+
+        <div id="provinceListContainer" class="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-800/50">
+            </div>
+
+        <div class="p-3 border-t border-slate-800/80 bg-slate-950/60 text-center text-[10px] text-slate-500">
+            MSI Reproductive Choices Afghanistan
+        </div>
+    </aside>
+
+    <main class="flex-1 h-full relative">
+        <div id="map" class="h-full w-full z-0"></div>
+
+        <div class="absolute bottom-4 left-4 z-10 bg-slate-900/80 backdrop-blur-md text-slate-300 px-3.5 py-1.5 rounded-full border border-slate-700/50 text-xs font-mono shadow-lg flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span id="coordinates">Lat/Lng: Select Location</span>
+        </div>
+
+        <div class="absolute top-4 right-4 z-10 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/60 shadow-xl flex items-center">
+            <select id="map-type" onchange="changeMapType()" class="bg-slate-800 text-xs text-slate-200 px-3 py-1.5 rounded-lg border-none focus:outline-none cursor-pointer font-medium">
+                <option value="streets">Street View</option>
+                <option value="satellite">Satellite View</option>
+                <option value="terrain">Terrain View</option>
+            </select>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        /*************************************************************
+         * 1. CLINIC DATA CONFIGURATION
+         * Easy to add/remove/edit clinics and provinces!
+         *************************************************************/
+        const clinicData = [
+            {
+                province: "Kabul",
+                status: null,
+                clinics: [
+                    { name: "Center 1", lat: 34.53381983225279, lng: 69.14358076337476, address: "Baharistan, street 3, PD4" },
+                    { name: "Mini Clinic 1", lat: 34.548443, lng: 69.167178, address: "Qala e Fathullah, street 6, PD 10" },
+                    { name: "Mini Clinic 3", lat: 34.490196608614426, lng: 69.16288075351729, address: "Chehel Sotoon, Wsel Abad" },
+                    { name: "KSC2", lat: 34.578875, lng: 69.138258, address: "Khairkhana Hospital (102 bed), Lese Maryam Market" },
+		    { name: "KSC6", lat: 34.607835, lng: 69.074505, address: "Kabul Shamal Road, Manuciplity Storage,Sare Kotal DH hospital, District 17" },
+		    { name: "KSC7", lat: 34.50673468478816, lng: 69.22676592458222, address: "Karte Now ,3rd road DH hospital, District 8" }
+		    
+                ]
+            },
+            {
+                province: "Paktia",
+                status: null,
+                clinics: [
+                    { name: "Center 27", lat: 33.63339, lng: 69.22661, address: "C27, Badam Market, Beland Manzal, Near Khalid Bin walid mosque, Gardiz City" },
+		    { name: "Center 37", lat: 33.596045366325356, lng: 69.2190242801528, address: "Sharan Gardiz Haiway , Gardiz City" }
+                ]
+            },
+           
+            {
+                province: "Ghor",
+                status: null,
+                clinics: [
+                    { name: "Free Fix", lat: 34.530197, lng: 65.269211, address: "Area 3, Family Maidan Hawai, Third Alley, Maaref Shari Street, House No. 2399" },
+
+		    { name: "MS Lady (Zahra)", lat: 34.85321, lng: 65.52316, address: "Seyab Village, Morghab District, Ghor Province" }
+		    
+                ]
+            },
+            {
+                province: "Farah",
+                status: null,
+                clinics: [
+                    { name: "Free Fix", lat: 32.377662, lng: 62.115879, address: "Farah city 2nd District ,behind Tabiban Hospital" },
+
+		    { name: "MS Lady (Farzana Bahari)", lat: 32.418251, lng: 62.0235460, address: "Nowbahar, PoshtRoad District, Farah Province" },
+		    { name: "MS Lady (Farzana Ataye)", lat: 32.55342, lng: 62.92198, address: "Chakab, Farah-Road District" }
+                ]
+            },
+            {
+                province: "Samangan",
+                status: null,
+                clinics: [
+                    { name: "Satellite Clinic", lat: 36.264853, lng: 68.009680, address: "SMGSC2, Bazar-e-Payen, DH Hospital, First District, Near Khatam al-Anbiya Mosque" },
+		    { name: "MS Lady (Gulpikai)", lat: 36.280606, lng: 68.031629, address: "Karte volayat ,third road,opposite third district" },
+		    { name: "MS Lady (Nooria)", lat: 36.278727, lng: 68.036667, address: "Second road of the Police HQ (Qomandani)" },
+                ]
+            },
+            {
+                province: "Nangarhar",
+                status: null,
+                clinics: [
+                    { name: "Satellite - JALSC 1", lat: 34.437387, lng: 70.436691, address: "Zone-2, In front of Rokhan Medical Complex" },
+                    { name: "Satellite - JALSC 2", lat: 34.438238, lng: 70.4464400, address: "Nangarhar Teaching Hospital, Zone-3, Jalalabad Nangarhar" },
+                    { name: "Satellite - JALSC 3", lat: 34.442626, lng: 70.415328, address: "Fatima Zuhra Medical Hospital, Zone-7, Sorkhroad Jalalabad" },
+                    { name: "Mini Clinic & Office", lat: 34.4317800, lng: 70.469420, address: "|MC| Zone-1, Near Mastofyat Chawk, In front of Abdul Wakil High School" },
+                    { name: "Center 13", lat: 34.424131, lng: 70.502137, address: "|C13| Behsood Zangoyee, Kochyano Kale" },
+		    { name: "MS Lady (Sana)", lat: 34.24588042411676, lng: 70.1606127636823, address: "Qailagho Esakhil, Khogyani District, Nangarhar Province " },
+		    { name: "MS Lady (Shabana Barakzai)", lat: 34.35222909690729, lng: 70.1827553947122, address: "Samarkhil Tagab Camp, Surkh Road District, Nangarhar Province " }
+                ]
+            },
+            {
+                province: "Kunduz",
+                status: null,
+                clinics: [
+                    { name: "Center 18", lat: 36.6194679714812, lng: 68.8969074879764, address: "Ali Abad District, Shena Tapa " },
+                    { name: "Satellite", lat: 36.71004, lng: 68.86251, address: "Kunduz 400-Bed-Hospital" },
+                    { name: "Imam Saib - Mini Clinic", lat: 37.18270, lng: 68.92277, address: "|MC| Ismayel Qoshlaq Port, Imam Sahib District" }
+                ]
+            },
+            {
+                province: "Baghlan",
+                status: null,
+                clinics: [
+                    { name: "Center 29", lat: 36.05877191239223, lng: 68.60575026749142, address: "|C29| Haji Hashim Village, Cheshma Shir" },
+                    { name: "Baghlan Satellite Clinic 1", lat: 35.938157235500015, lng: 68.71592271212246, address: "Pole Khumrai - Gov Civil Hospital " },
+
+			{ name: "MS Lady (Tamana)", lat: 36.07889367700668, lng: 68.62765032525711, address: "Qandahar qushlaq village" },
+			{ name: "MS Lady (Jamila)", lat: 35.70755381881707, lng: 69.33487813873288, address: "Dah Salah District Dizak chawk" },
+			{ name: "MS Lady (Gularam)", lat: 36.2773220, lng: 68.8316300, address: "Jar e Khoshk Baghlan, Kohistani Dist" }
+
+                ]
+            },
+            {
+                province: "Kandahar",
+                status: null,
+                clinics: [
+                    { name: "Kandahar Satellite Clinic (Mini Clinic)", lat: 31.680668479303783, lng: 65.80328104296126, address: "Aino Mina Hospital" },
+                    { name: "Kandahar Satellite Clinic (Kadri Satellite)", lat: 31.615564223395545, lng: 65.7613576201526, address: "Kadri Hospital, Kandahar City" },
+                    { name: "Kandahar Satellite Clinic (C22)", lat: 31.61967126456746, lng: 65.67980655390305, address: "Mirwais Regional Hospital" },
+                    { name: "MSI Kandahar Office", lat: 31.62056994114004, lng: 65.76374799422642, address: "Aino Mina, Kandahar city." }
+                ]
+            },
+            {
+                province: "Bamiyan",
+                status: null,
+                clinics: [
+                    { name: "Center 35", lat: 34.80841209626183, lng: 67.82165073940705, address: "Behind the Airport, resalat mosque house # 25, Central Bamiyan" },
+
+			{ name: "MS Lady (Tahira Hakimi)", lat: 34.10860641345603, lng: 66.8027502963347, address: "Waras Dist" },
+			{ name: "MS Lady (Habiba Rezaii)", lat: 34.6038154051158, lng: 66.88106423306242, address: "Sya Dara Dist" },
+			{ name: "MS Lady (Sedeqa Mosawe)", lat: 34.44053708644069, lng: 66.61394785402067, address: "Panjab Dist" }
+                ]
+            },
+            {
+                province: "Faryab",
+                status: null,
+                clinics: [
+                    { name: "Center 5", lat: 35.919870, lng: 64.793328, address: "PD1,Baloach kana,Maimana city, above Dr. Amin Rahim OPD Clinic" },
+                    { name: "Center 28", lat: 35.930729, lng: 64.774596, address: "PD4, Arab khana, Khuaja Mosa Car port, Maimana City" },
+                    { name: "Satellite", lat: 35.923457, lng: 64.775560, address: "Provincial Hospital, airport area, behind Vahdat street, Maimana City" },
+                ]
+            },
+            {
+                province: "Jawzjan",
+                status: null,
+                clinics: [
+                    { name: "Center 11", lat: 36.664699, lng: 65.750854, address: "|C11| D3,Mahtab Shar Market, Sheberghan City" },
+                    { name: "Center 12", lat: 36.665836, lng: 65.763687, address: "|C12| D4, Jawzjan - Mazar-e-Sharif Highway, Sheberghan City" },
+                    { name: "Free Fix", lat: 36.661504, lng: 65.783338, address: "|FF| D1, Project 1, Sheberghan City" },
+
+		    { name: "MS Lady (Shokria)", lat: 36.910504, lng: 66.178522, address: "Wali Bay Village, Aqcha District" },
+		    { name: "MS Lady (Fariba)", lat: 36.684737, lng: 65.741648, address: "Baba Ali Village, Jawzjan City" },
+		    { name: "MS Lady (Hasina)", lat: 35.963585, lng: 65.377195, address: "Darzab District, Jawzjan Province" },
+		    { name: "MS Lady (Malali)", lat: 36.767131, lng: 65.839027, address: "Mesrabad inaw District, Jawzjan Province" },
+		    { name: "MS Lady (Shayesta)", lat: 36.570517, lng: 65.758361, address: "Nawabad Turkistan District, Jawzjan Province" }
+                ]
+            },
+            {
+                province: "Helmand",
+                status: null,
+                clinics: [
+                    { name: "Center 15", lat: 31.825481293980783, lng: 64.56091227424072, address: "NahreSeraj District,Zhrand Chawk New Bazar street" },
+                    { name: "Center 16", lat: 31.1152030, lng: 64.2327460, address: "|C16| Garamsir DIstrict, Kharoti Village" },
+
+		    { name: "MS Lady (Nooria)", lat: 31.827404, lng: 64.549876, address: "Nahresiraj district, Newbazar ,3rd street,House no4" },
+		    { name: "MS Lady (Farida)", lat: 31.602578, lng: 64.399734, address: "Qasaba, Lashkargah" }
+                ]
+            },
+            {
+                province: "Badakhshan",
+                status: null,
+                clinics: [
+                    { name: "Satellite", lat: 37.11926804274171, lng: 70.57125282588945, address: "Satellite clinic inside Faizabad Regional Hospital" },
+
+			{ name: "MS Lady (Bibi Mara)", lat: 36.86481642465199, lng: 70.82580023533824, address: "Jurm Dist" },
+			{ name: "MS Lady (Rukhshana)", lat: 36.97592967997417, lng: 70.8684730336644, address: "Baharak Dist" },
+			{ name: "MS Lady (Hakima)", lat: 37.093656140227054, lng: 70.53992928091937, address: "Faizabad City / Dist" },
+			{ name: "MS Lady (Palwasha)", lat: 37.16973715904746, lng: 70.2310277962665, address: "Argo Dist" },
+			{ name: "MS Lady (Aisha)", lat: 36.746007220856995, lng: 70.16239962508183, address: "Kishm Dist" }
+                ]
+            },
+            {
+                province: "Takhar",
+                status: null,
+                clinics: [
+		{ name: "Satellite", lat: 36.72959007883767, lng: 69.52407561905447, address: "Satellite clinic inside Taloqan Central Hospital Hospital" },
+		{ name: "MSI Takhar Office", lat: 36.73109040008679, lng: 69.52141892115907, address: "Near Balkh Restaurant and Taloqan Central Hospital" },
+
+			{ name: "MS Lady (Shamim)", lat: 36.71831087385746, lng: 69.61003413857294, address: "Ahandasrah, Takhar, Taloqan main road" },
+			{ name: "MS Lady (Suhaila)", lat: 36.718828, lng: 69.516395, address: "Ahandasrah, Takhar, Taloqan main road" },
+			{ name: "MS Lady (Nasima)", lat: 36.740355, lng: 69.358825, address: "Takhar-Kundoz main road, Jabar Khil" },
+			{ name: "MS Lady (Sara)", lat: 36.744033, lng: 69.344033, address: "Takhar-Kundoz main road, Bagh e Miri" }
+			
+]
+            },
+            {
+                province: "Herat",
+                status: null,
+                clinics: [
+                    { name: "Center 6", lat: 34.345768965533004, lng: 62.22114070129639, address: "|C6| Majidi Street, infront of Takapo School, 6th District" },
+                    { name: "Center 7", lat: 34.3394079, lng: 62.1823429, address: "|C7| Darb-e-Iraq, 14th Destrict" },
+                    { name: "Center 36", lat: 34.3563331065881, lng: 62.34964825228788, address: "|C36| SHidaee, Shahrak Haj Qorban, Ali Madad, 3 District." },
+                    { name: "Satellite-HSC3", lat: 34.349795, lng: 62.196889, address: "|HSC3| Charahi Gul Ha, Zayeshga Hospital" },
+                    { name: "Mini CLinic/free fix", lat: 34.3339902, lng: 62.1284973, address: "|FF| Ghaibatan, Azim Abad, 14th District" },
+
+			{ name: "MS Lady (Freshta Hamraz)", lat: 34.34728, lng: 62.19268, address: "2nd District- New city- Bazarcha neighborhood" },
+			{ name: "MS Lady (Kobra Mohammadi)", lat: 34.37176, lng: 62.14502, address: "13th District-Jebraiel-Towhid 17" },
+			{ name: "MS Lady (Fariba Karimi)", lat: 34.35498497937257, lng: 62.202742794192865, address: "1st District- Beitolaman- Vahdat neighborhood" },
+			{ name: "MS Lady (Fatima Rezaie)", lat: 34.34242, lng: 62.22747, address: "13th District-Jebraiel-Itifaq 4" },
+			{ name: "MS Lady (Farukh Hussaini)", lat: 34.38323645615688, lng: 62.14696415312197, address: "Jabrail- Shaid kazimi 22 home no 18" },
+			{ name: "MS Lady (Amena Noori)", lat: 34.34853, lng: 62.18147, address: "9th District, Khaja Kala" },
+			{ name: "MS Lady (Soraya Sadat)", lat: 34.35625, lng: 62.17150, address: "9th District, Mahal Arabha" },
+			{ name: "MS Lady (Fazela Rahimi)", lat: 34.30900, lng: 62.21917, address: "Injil, Novin Neiborhood" },
+			{ name: "MS Lady (Maleka Haidari)", lat: 34.329614, lng: 62.219371, address: "6th District, Poste No1, Haqiqat Street" }
+                ]
+            },
+            {
+                province: "Balkh",
+                status: null,
+                clinics: [
+                    { name: "Center 8", lat: 36.706896, lng: 67.122737, address: "|C8| 1st District, Marmol Street, east side of Sultan razia high school" },
+                    { name: "Center 9", lat: 36.66625270282874, lng: 67.0073572625332, address: "|C9| Dihdadi District, Qarya Pol Babo, Opposite to Masjid Jami" },
+                    { name: "Center 10", lat: 36.69522843802952, lng: 67.10611789465258, address: "|C10| 5th District, Aziz Abad Olay, Ishan Kamal Mosque" },
+                    { name: "Satellite-MSC5", lat: 36.7181, lng: 67.1074, address: "|MSC5| 2nd district, Chawk Sidiqyar, next to PD2" },
+
+			{ name: "MS Lady (Madina)", lat: 36.67158482873524, lng: 67.10097618541847, address: "Abo Talib area ST no 10" },
+			{ name: "MS Lady (Zahra)", lat: 36.74577861094924, lng: 67.13430448721135, address: "Noor e Khuda block No 6" },
+			{ name: "MS Lady (Shamail)", lat: 36.727829751074395, lng: 67.07575489640669, address: "Proje 5, St 12" },
+			{ name: "MS Lady (Sema Gul)", lat: 36.76358069764321, lng: 66.89191927349286, address: "Bandar Keleft Qalay Asad Khan - Balkh Dist" },
+			{ name: "MS Lady (Aqela)", lat: 36.71087238637594, lng: 67.10836645407731, address: "Kart e Bukhde No 1 - ST 2" }
+                ]
+            },
+            {
+                province: "Kapisa",
+                status: null,
+                clinics: [
+                    { name: "Satellite", lat: 35.020718, lng: 69.357898, address: "Satellite clinic inside Mahmud Raqi Hospital" }
+                ]
+            }
+        ];
+
+        /*************************************************************
+         * 2. MAP INITIALIZATION & TILES
+         *************************************************************/
+        const map = L.map('map', { zoomControl: false }).setView([34.5553, 69.2075], 6);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' });
+        const terrain = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: '© OpenTopoMap' });
+
+        let singleMarker = null;
+        let provinceMarkersGroup = L.layerGroup().addTo(map);
+
+        /*************************************************************
+         * 3. RENDER SIDEBAR & INTERACTION
+         *************************************************************/
+        function renderSidebar() {
+            const container = document.getElementById('provinceListContainer');
+            container.innerHTML = '';
+
+            clinicData.forEach((data, index) => {
+                const count = data.clinics.length;
+                const statusBadge = data.status ? `<span class="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-normal ml-2">${data.status}</span>` : '';
+
+                const provinceItem = document.createElement('div');
+                provinceItem.className = "province-block";
+                provinceItem.setAttribute('data-province', data.province.toLowerCase());
+
+                let clinicsHTML = '';
+                if (count === 0) {
+                    clinicsHTML = `<div class="p-3 text-xs text-slate-500 italic pl-6 bg-slate-950/40">No clinics registered for this area.</div>`;
+                } else {
+                    clinicsHTML = data.clinics.map(c => `
+                        <div class="clinic-item group flex flex-col p-3 pl-7 hover:bg-indigo-600/10 border-b border-slate-800/30 cursor-pointer transition-all duration-200" 
+                             onclick="selectClinic(${c.lat}, ${c.lng}, '${escapeHtml(c.name)}', '${escapeHtml(c.address)}')"
+                             data-search="${c.name.toLowerCase()} ${c.address.toLowerCase()}">
+                            <div class="text-xs font-semibold text-slate-200 group-hover:text-indigo-400 flex items-center justify-between">
+                                <span>${c.name}</span>
+                                <svg class="w-3.5 h-3.5 text-slate-600 group-hover:text-indigo-400 transform group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                            <div class="text-[11px] text-slate-400 mt-1 line-clamp-1">${c.address}</div>
+                        </div>
+                    `).join('');
+                }
+
+                provinceItem.innerHTML = `
+                    <button class="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-slate-800/40 transition-colors duration-150 focus:outline-none" 
+                            onclick="toggleProvinceAccordion(${index})">
+                        <div class="flex items-center">
+                            <span class="text-xs font-semibold text-slate-200 tracking-wide">${data.province}</span>
+                            ${statusBadge}
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700/50">${count}</span>
+                            <svg id="arrow-${index}" class="arrow-icon w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </button>
+                    <div id="accordion-${index}" class="accordion-content bg-slate-950/30 divide-y divide-slate-800/20">
+                        ${clinicsHTML}
+                    </div>
+                `;
+                container.appendChild(provinceItem);
+            });
+        }
+
+        /*************************************************************
+         * 4. INTERACTIVE ACCORDION & MAP LOGIC
+         *************************************************************/
+        function toggleProvinceAccordion(index) {
+            const data = clinicData[index];
+            const content = document.getElementById(`accordion-${index}`);
+            const arrow = document.getElementById(`arrow-${index}`);
+            const isOpen = content.classList.contains('open');
+
+            // Close all open accordions
+            document.querySelectorAll('.accordion-content').forEach(el => el.classList.remove('open'));
+            document.querySelectorAll('.arrow-icon').forEach(el => el.classList.remove('rotate'));
+
+            if (!isOpen) {
+                content.classList.add('open');
+                arrow.classList.add('rotate');
+
+                // Plot all clinics of this province on map
+                if (data.clinics.length > 0) {
+                    plotProvinceClinics(data.clinics);
+                }
+            } else {
+                provinceMarkersGroup.clearLayers();
+            }
+        }
+
+        function plotProvinceClinics(clinics) {
+            provinceMarkersGroup.clearLayers();
+            if (singleMarker) map.removeLayer(singleMarker);
+
+            const bounds = [];
+            clinics.forEach(c => {
+                const marker = L.circleMarker([c.lat, c.lng], {
+                    radius: 7,
+                    fillColor: "#6366f1",
+                    color: "#ffffff",
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.9
+                }).bindPopup(`
+                    <div class="p-1">
+                        <strong class="text-indigo-400 text-xs font-bold block mb-1">${c.name}</strong>
+                        <p class="text-[11px] text-slate-300 leading-tight">${c.address}</p>
+                    </div>
+                `);
+
+                marker.on('click', () => {
+                    document.getElementById('coordinates').textContent = `Lat/Lng: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}`;
+                });
+
+                provinceMarkersGroup.addLayer(marker);
+                bounds.push([c.lat, c.lng]);
+            });
+
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [60, 60], maxZoom: 13 });
+            }
+        }
+
+        function selectClinic(lat, lng, name, address) {
+            provinceMarkersGroup.clearLayers();
+            if (singleMarker) map.removeLayer(singleMarker);
+
+            // Custom modern pulse marker
+            const customIcon = L.divIcon({
+                className: 'custom-pin',
+                html: `
+                    <div class="relative flex items-center justify-center w-6 h-6">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-4 w-4 bg-indigo-600 border-2 border-white shadow-lg"></span>
+                    </div>
+                `,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            singleMarker = L.marker([lat, lng], { icon: customIcon })
+                .addTo(map)
+                .bindPopup(`
+                    <div class="p-1">
+                        <strong class="text-indigo-400 text-xs font-bold block mb-1">${name}</strong>
+                        <p class="text-[11px] text-slate-300 leading-tight">${address}</p>
+                    </div>
+                `)
+                .openPopup();
+
+            map.setView([lat, lng], 14, { animate: true });
+            document.getElementById('coordinates').textContent = `Lat/Lng: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        }
+
+        /*************************************************************
+         * 5. UTILITY FUNCTIONS (SEARCH & MAP TYPE)
+         *************************************************************/
+        function filterLocations() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const provinceBlocks = document.querySelectorAll('.province-block');
+
+            provinceBlocks.forEach(block => {
+                const provinceName = block.getAttribute('data-province');
+                const clinics = block.querySelectorAll('.clinic-item');
+                let hasMatch = provinceName.includes(query);
+
+                clinics.forEach(clinic => {
+                    const searchData = clinic.getAttribute('data-search');
+                    if (searchData.includes(query)) {
+                        clinic.style.display = 'flex';
+                        hasMatch = true;
+                    } else {
+                        clinic.style.display = 'none';
+                    }
+                });
+
+                block.style.display = hasMatch ? 'block' : 'none';
+                
+                // Automatically open accordion if searching
+                const accordion = block.querySelector('.accordion-content');
+                if (query.length > 1 && hasMatch && accordion) {
+                    accordion.classList.add('open');
+                } else if (query.length === 0 && accordion) {
+                    accordion.classList.remove('open');
+                }
+            });
+        }
+
+        function changeMapType() {
+            const type = document.getElementById('map-type').value;
+            map.eachLayer(layer => {
+                if (layer instanceof L.TileLayer) map.removeLayer(layer);
+            });
+
+            if (type === 'streets') streets.addTo(map);
+            else if (type === 'satellite') satellite.addTo(map);
+            else if (type === 'terrain') terrain.addTo(map);
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        }
+
+        // Initialize UI
+        renderSidebar();
+    </script>
+</body>
+</html>
