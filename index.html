@@ -62,9 +62,24 @@
         .arrow-icon.rotate {
             transform: rotate(180deg);
         }
+
+        .user-location-pulse {
+            width: 18px; height: 18px; border-radius: 50%;
+            background: #2563eb; border: 3px solid #fff;
+            box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.18), 0 2px 8px rgba(0,0,0,.45);
+        }
+
+        .route-status {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; display: none;
+            background: rgba(15,23,42,.95); color: #e2e8f0;
+            border: 1px solid rgba(255,255,255,.12); border-radius: 10px;
+            padding: 8px 12px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 h-screen w-screen flex overflow-hidden relative">
+    <div id="routeStatus" class="route-status" aria-live="polite"></div>
 
     <!-- Mobile Header/Toggle Bar -->
     <button id="menuToggleBtn" onclick="toggleSidebar()" class="md:hidden fixed top-4 left-4 z-30 bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/60 text-white shadow-xl flex items-center justify-center focus:outline-none">
@@ -108,6 +123,8 @@
 
     <!-- Main Map View -->
     <main class="flex-1 h-full w-full relative">
+        <button type="button" onclick="startLiveLocation()" class="fixed md:absolute top-4 right-4 z-30 bg-slate-900/95 text-white px-3 py-2 rounded-lg border border-slate-700 shadow-xl text-xs font-semibold">My Location</button>
+
         <div id="map" class="h-full w-full z-0"></div>
 
         <!-- Coordinates Badge -->
@@ -336,6 +353,18 @@
         /*************************************************************
          * 2. MAP INITIALIZATION & TILES
          *************************************************************/
+        // Google Directions requires a Google Maps Platform API key with the Directions API enabled.
+        // Put your key here. The map tiles themselves can continue using the existing Google tile layers.
+        const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
+        let userLocationMarker = null;
+        let userLocationAccuracy = null;
+        let userPosition = null;
+        let routeLine = null;
+        let routeDestination = null;
+        let locationWatchId = null;
+        let googleMapsLoaded = false;
+        let googleMapsLoading = null;
+
         const map = L.map('map', { zoomControl: false }).setView([34.5553, 69.2075], 6);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -490,6 +519,107 @@
             }
         }
 
+        function setRouteStatus(message, show = true) {
+            const el = document.getElementById('routeStatus');
+            el.textContent = message;
+            el.style.display = show ? 'block' : 'none';
+        }
+
+        function startLiveLocation() {
+            if (!navigator.geolocation) {
+                setRouteStatus('Live location is not supported by this browser.');
+                return;
+            }
+
+            if (locationWatchId !== null) navigator.geolocation.clearWatch(locationWatchId);
+            setRouteStatus('Getting your live location…');
+
+            locationWatchId = navigator.geolocation.watchPosition(position => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const accuracy = Math.max(1, position.coords.accuracy || 1);
+                userPosition = { lat, lng };
+
+                if (!userLocationMarker) {
+                    const icon = L.divIcon({ className: '', html: '<div class="user-location-pulse"></div>', iconSize: [18,18], iconAnchor: [9,9] });
+                    userLocationMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000 }).addTo(map).bindTooltip('Your live location', { direction: 'top', offset: [0,-10] });
+                } else {
+                    userLocationMarker.setLatLng([lat, lng]);
+                }
+
+                if (!userLocationAccuracy) {
+                    userLocationAccuracy = L.circle([lat, lng], { radius: accuracy, color: '#2563eb', weight: 1, opacity: .35, fillColor: '#2563eb', fillOpacity: .08 }).addTo(map);
+                } else {
+                    userLocationAccuracy.setLatLng([lat, lng]).setRadius(accuracy);
+                }
+
+                document.getElementById('coordinates').textContent = `Your location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                if (!routeDestination) setRouteStatus('Live location active');
+            }, error => {
+                const messages = { 1: 'Location permission was denied.', 2: 'Your location could not be determined.', 3: 'Location request timed out.' };
+                setRouteStatus(messages[error.code] || 'Unable to get your location.');
+            }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 });
+        }
+
+        function loadGoogleMapsApi() {
+            if (googleMapsLoaded && window.google && google.maps) return Promise.resolve();
+            if (googleMapsLoading) return googleMapsLoading;
+            if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
+                return Promise.reject(new Error('Google Directions API key is not configured.'));
+            }
+            googleMapsLoading = new Promise((resolve, reject) => {
+                const callbackName = '__msiGoogleMapsReady';
+                window[callbackName] = () => {
+                    googleMapsLoaded = true;
+                    delete window[callbackName];
+                    resolve();
+                };
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&callback=${callbackName}`;
+                script.async = true; script.defer = true;
+                script.onerror = () => { delete window[callbackName]; reject(new Error('Google Maps JavaScript API could not be loaded.')); };
+                document.head.appendChild(script);
+            });
+            return googleMapsLoading;
+        }
+
+        async function calculateRoute(lat, lng, name) {
+            if (!userPosition) {
+                startLiveLocation();
+                setRouteStatus('Waiting for your live location…');
+                return;
+            }
+            routeDestination = { lat, lng, name };
+            setRouteStatus('Calculating route…');
+            try {
+                await loadGoogleMapsApi();
+                const service = new google.maps.DirectionsService();
+                service.route({
+                    origin: userPosition,
+                    destination: { lat, lng },
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    provideRouteAlternatives: false
+                }, (result, status) => {
+                    if (status !== 'OK' || !result.routes.length) {
+                        setRouteStatus('Google could not calculate a driving route.');
+                        return;
+                    }
+                    const path = result.routes[0].overview_path.map(point => [point.lat(), point.lng()]);
+                    if (routeLine) map.removeLayer(routeLine);
+                    routeLine = L.polyline(path, { color: '#2563eb', weight: 6, opacity: .9, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+                    map.fitBounds(routeLine.getBounds(), { padding: [60, 60], maxZoom: 16 });
+                    const leg = result.routes[0].legs[0];
+                    const distance = leg.distance ? leg.distance.text : '';
+                    const duration = leg.duration ? leg.duration.text : '';
+                    setRouteStatus(`Route to ${name}: ${distance}${distance && duration ? ' • ' : ''}${duration}`);
+                });
+            } catch (err) {
+                setRouteStatus('Directions need a valid Google Maps API key. Opening Google Maps instead…');
+                const url = `https://www.google.com/maps/dir/?api=1&origin=${userPosition.lat},${userPosition.lng}&destination=${lat},${lng}&travelmode=driving`;
+                window.open(url, '_blank', 'noopener');
+            }
+        }
+
         function selectClinic(lat, lng, name, address) {
             provinceMarkersGroup.clearLayers();
             if (singleMarker) map.removeLayer(singleMarker);
@@ -511,7 +641,8 @@
                 .bindPopup(`
                     <div class="p-1">
                         <strong class="text-indigo-400 text-xs font-bold block mb-1">${name}</strong>
-                        <p class="text-[11px] text-slate-300 leading-tight">${address}</p>
+                        <p class="text-[11px] text-slate-300 leading-tight mb-2">${address}</p>
+                        <button type="button" onclick="calculateRoute(${lat}, ${lng}, '${name.replace(/'/g, "\\'")}')" style="background:#2563eb;color:white;border:0;border-radius:7px;padding:6px 9px;font-size:11px;font-weight:600;cursor:pointer;width:100%;">Get Direction</button>
                     </div>
                 `)
                 .openPopup();
@@ -575,6 +706,7 @@
 
         // Initialize UI
         renderSidebar();
+        startLiveLocation();
     </script>
 </body>
 </html>
