@@ -18,7 +18,7 @@
             touch-action: manipulation;
         }
 
-        /* Smooth scrollbar for sidebar */
+        /* Custom scrollbar for sidebar */
         .custom-scrollbar::-webkit-scrollbar {
             width: 5px;
         }
@@ -62,24 +62,9 @@
         .arrow-icon.rotate {
             transform: rotate(180deg);
         }
-
-        .user-location-pulse {
-            width: 18px; height: 18px; border-radius: 50%;
-            background: #2563eb; border: 3px solid #fff;
-            box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.18), 0 2px 8px rgba(0,0,0,.45);
-        }
-
-        .route-status {
-            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-            z-index: 1000; display: none;
-            background: rgba(15,23,42,.95); color: #e2e8f0;
-            border: 1px solid rgba(255,255,255,.12); border-radius: 10px;
-            padding: 8px 12px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
-        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 h-screen w-screen flex overflow-hidden relative">
-    <div id="routeStatus" class="route-status" aria-live="polite"></div>
 
     <!-- Mobile Header/Toggle Bar -->
     <button id="menuToggleBtn" onclick="toggleSidebar()" class="md:hidden fixed top-4 left-4 z-30 bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/60 text-white shadow-xl flex items-center justify-center focus:outline-none">
@@ -123,15 +108,20 @@
 
     <!-- Main Map View -->
     <main class="flex-1 h-full w-full relative">
-        <button type="button" onclick="startLiveLocation()" class="fixed md:absolute top-20 right-4 z-30 bg-slate-900/95 text-white px-3 py-2 rounded-lg border border-slate-700 shadow-xl text-xs font-semibold">My Location</button>
-
         <div id="map" class="h-full w-full z-0"></div>
 
-        <!-- Coordinates Badge -->
-        <div class="absolute bottom-20 left-4 z-10 bg-slate-900/80 backdrop-blur-md text-slate-300 px-3 py-1.5 rounded-full border border-slate-700/50 text-[11px] sm:text-xs font-mono shadow-lg flex items-center space-x-2 max-w-[calc(100%-2rem)] truncate">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+        <!-- Coordinates & Route Status Badge -->
+        <div class="absolute bottom-4 left-4 z-10 bg-slate-900/80 backdrop-blur-md text-slate-300 px-3 py-1.5 rounded-full border border-slate-700/50 text-[11px] sm:text-xs font-mono shadow-lg flex items-center space-x-2 max-w-[calc(100%-2rem)] truncate">
+            <span id="statusIndicator" class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
             <span id="coordinates" class="truncate">Lat/Lng: Select Location</span>
         </div>
+
+        <!-- Locate Me Button -->
+        <button onclick="locateUser(true)" title="Find My Location" class="absolute bottom-16 right-4 z-10 bg-slate-900/90 hover:bg-slate-800 text-indigo-400 p-3 rounded-xl border border-slate-700/60 shadow-xl transition-all focus:outline-none">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"></path>
+            </svg>
+        </button>
 
         <!-- Layer Switcher -->
         <div class="absolute top-4 right-4 z-10 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/60 shadow-xl flex items-center">
@@ -183,7 +173,7 @@
                 status: null,
                 clinics: [
                     { name: "Free Fix", lat: 32.377662, lng: 62.115879, address: "Farah city 2nd District ,behind Tabiban Hospital" },
-                    { name: "MS Lady (Farzana Bahari)", lat: 32.418251, lng: 62.0235460, address: "Nowbahar, PoshtRoad District, Farah Province" },
+                    { name: "MS Lady (Farzana Bahari)", lat: 32.418251, lng: 62.023546, address: "Nowbahar, PoshtRoad District, Farah Province" },
                     { name: "MS Lady (Farzana Ataye)", lat: 32.55342, lng: 62.92198, address: "Chakab, Farah-Road District" }
                 ]
             },
@@ -201,19 +191,19 @@
                 status: null,
                 clinics: [
                     { name: "Satellite - JALSC 1", lat: 34.437387, lng: 70.436691, address: "Zone-2, In front of Rokhan Medical Complex" },
-                    { name: "Satellite - JALSC 2", lat: 34.438238, lng: 70.4464400, address: "Nangarhar Teaching Hospital, Zone-3, Jalalabad Nangarhar" },
+                    { name: "Satellite - JALSC 2", lat: 34.438238, lng: 70.446440, address: "Nangarhar Teaching Hospital, Zone-3, Jalalabad Nangarhar" },
                     { name: "Satellite - JALSC 3", lat: 34.442626, lng: 70.415328, address: "Fatima Zuhra Medical Hospital, Zone-7, Sorkhroad Jalalabad" },
-                    { name: "Mini Clinic & Office", lat: 34.4317800, lng: 70.469420, address: "|MC| Zone-1, Near Mastofyat Chawk, In front of Abdul Wakil High School" },
+                    { name: "Mini Clinic & Office", lat: 34.431780, lng: 70.469420, address: "|MC| Zone-1, Near Mastofyat Chawk, In front of Abdul Wakil High School" },
                     { name: "Center 13", lat: 34.424131, lng: 70.502137, address: "|C13| Behsood Zangoyee, Kochyano Kale" },
-                    { name: "MS Lady (Sana)", lat: 34.24588042411676, lng: 70.1606127636823, address: "Qailagho Esakhil, Khogyani District, Nangarhar Province " },
-                    { name: "MS Lady (Shabana Barakzai)", lat: 34.35222909690729, lng: 70.1827553947122, address: "Samarkhil Tagab Camp, Surkh Road District, Nangarhar Province " }
+                    { name: "MS Lady (Sana)", lat: 34.24588042411676, lng: 70.1606127636823, address: "Qailagho Esakhil, Khogyani District, Nangarhar Province" },
+                    { name: "MS Lady (Shabana Barakzai)", lat: 34.35222909690729, lng: 70.1827553947122, address: "Samarkhil Tagab Camp, Surkh Road District, Nangarhar Province" }
                 ]
             },
             {
                 province: "Kunduz",
                 status: null,
                 clinics: [
-                    { name: "Center 18", lat: 36.6194679714812, lng: 68.8969074879764, address: "Ali Abad District, Shena Tapa " },
+                    { name: "Center 18", lat: 36.6194679714812, lng: 68.8969074879764, address: "Ali Abad District, Shena Tapa" },
                     { name: "Satellite", lat: 36.71004, lng: 68.86251, address: "Kunduz 400-Bed-Hospital" },
                     { name: "Imam Saib - Mini Clinic", lat: 37.18270, lng: 68.92277, address: "|MC| Ismayel Qoshlaq Port, Imam Sahib District" }
                 ]
@@ -223,7 +213,7 @@
                 status: null,
                 clinics: [
                     { name: "Center 29", lat: 36.05877191239223, lng: 68.60575026749142, address: "|C29| Haji Hashim Village, Cheshma Shir" },
-                    { name: "Baghlan Satellite Clinic 1", lat: 35.938157235500015, lng: 68.71592271212246, address: "Pole Khumrai - Gov Civil Hospital " },
+                    { name: "Baghlan Satellite Clinic 1", lat: 35.938157235500015, lng: 68.71592271212246, address: "Pole Khumrai - Gov Civil Hospital" },
                     { name: "MS Lady (Tamana)", lat: 36.07889367700668, lng: 68.62765032525711, address: "Qandahar qushlaq village" },
                     { name: "MS Lady (Jamila)", lat: 35.70755381881707, lng: 69.33487813873288, address: "Dah Salah District Dizak chawk" },
                     { name: "MS Lady (Gularam)", lat: 36.2773220, lng: 68.8316300, address: "Jar e Khoshk Baghlan, Kohistani Dist" }
@@ -351,34 +341,127 @@
         ];
 
         /*************************************************************
-         * 2. MAP INITIALIZATION & TILES
+         * 2. MAP INITIALIZATION & GLOBALS
          *************************************************************/
-        // Google Directions requires a Google Maps Platform API key with the Directions API enabled.
-        // Put your key here. The map tiles themselves can continue using the existing Google tile layers.
-        const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
-        let userLocationMarker = null;
-        let userLocationAccuracy = null;
-        let userPosition = null;
-        let routeLine = null;
-        let routeDestination = null;
-        let locationWatchId = null;
-        let googleMapsLoaded = false;
-        let googleMapsLoading = null;
-
         const map = L.map('map', { zoomControl: false }).setView([34.5553, 69.2075], 6);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // Google Maps tile layers require a valid Google Maps Platform API key.
-        // Replace YOUR_GOOGLE_MAPS_API_KEY below with your own key.
         const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { attribution: '© Google' }).addTo(map);
         const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { attribution: '© Google' });
         const googleTerrain = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', { attribution: '© Google' });
 
         let singleMarker = null;
+        let userMarker = null;
+        let userLocation = null;
+        let routePolyline = null;
         let provinceMarkersGroup = L.layerGroup().addTo(map);
 
         /*************************************************************
-         * 3. MOBILE DRAWER NAVIGATION
+         * 3. USER GEOLOCATION & NAVIGATION
+         *************************************************************/
+        function locateUser(zoomToUser = false) {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    alert("Geolocation is not supported by your browser.");
+                    reject("Geolocation unsupported");
+                    return;
+                }
+
+                document.getElementById('coordinates').textContent = "Locating your position...";
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+
+                        if (!userMarker) {
+                            const userIcon = L.divIcon({
+                                className: 'user-pin',
+                                html: `
+                                    <div class="relative flex items-center justify-center w-6 h-6">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-4 w-4 bg-cyan-500 border-2 border-white shadow-lg"></span>
+                                    </div>
+                                `,
+                                iconSize: [24, 24],
+                                iconAnchor: [12, 12]
+                            });
+
+                            userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
+                                .addTo(map)
+                                .bindPopup(`<div class="p-1 font-bold text-cyan-400 text-xs">Your Current Location</div>`);
+                        } else {
+                            userMarker.setLatLng([userLocation.lat, userLocation.lng]);
+                        }
+
+                        if (zoomToUser) {
+                            map.setView([userLocation.lat, userLocation.lng], 14, { animate: true });
+                            userMarker.openPopup();
+                        }
+
+                        document.getElementById('coordinates').textContent = `Your Location: ${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`;
+                        resolve(userLocation);
+                    },
+                    (error) => {
+                        alert("Unable to retrieve your location. Please ensure location permissions are granted.");
+                        document.getElementById('coordinates').textContent = "Location Access Denied";
+                        reject(error);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000 }
+                );
+            });
+        }
+
+        async function getDirections(destLat, destLng, destName) {
+            if (!userLocation) {
+                try {
+                    await locateUser(false);
+                } catch (e) {
+                    return;
+                }
+            }
+
+            document.getElementById('coordinates').textContent = "Calculating route...";
+
+            const url = `https://router.project-osrm.org/route/v1/driving/${userLocation.lng},${userLocation.lat};${destLng},${destLat}?overview=full&geometries=geojson`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+
+                    if (routePolyline) {
+                        map.removeLayer(routePolyline);
+                    }
+
+                    routePolyline = L.polyline(coords, {
+                        color: '#6366f1',
+                        weight: 5,
+                        opacity: 0.8,
+                        lineCap: 'round'
+                    }).addTo(map);
+
+                    map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+
+                    const distanceKm = (route.distance / 1000).toFixed(1);
+                    const durationMin = Math.round(route.duration / 60);
+
+                    document.getElementById('coordinates').textContent = `Route to ${destName}: ${distanceKm} km (~${durationMin} mins)`;
+                } else {
+                    alert("Could not calculate driving route.");
+                }
+            } catch (err) {
+                alert("Error connecting to routing service.");
+            }
+        }
+
+        /*************************************************************
+         * 4. MOBILE DRAWER NAVIGATION
          *************************************************************/
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -389,14 +472,12 @@
             const isOpen = !sidebar.classList.contains('-translate-x-full');
 
             if (isOpen) {
-                // Close Sidebar
                 sidebar.classList.add('-translate-x-full');
                 backdrop.classList.add('opacity-0');
                 setTimeout(() => backdrop.classList.add('hidden'), 300);
                 hamburgerIcon.classList.remove('hidden');
                 closeIcon.classList.add('hidden');
             } else {
-                // Open Sidebar
                 backdrop.classList.remove('hidden');
                 setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
                 sidebar.classList.remove('-translate-x-full');
@@ -406,8 +487,28 @@
         }
 
         /*************************************************************
-         * 4. RENDER SIDEBAR & INTERACTION
+         * 5. RENDER SIDEBAR & INTERACTION
          *************************************************************/
+        function escapeHtml(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function createPopupContent(name, address, lat, lng) {
+            return `
+                <div class="p-1">
+                    <strong class="text-indigo-400 text-xs font-bold block mb-1">${name}</strong>
+                    <p class="text-[11px] text-slate-300 leading-tight mb-3">${address}</p>
+                    <button onclick="getDirections(${lat}, ${lng}, '${escapeHtml(name)}')" 
+                            class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold py-1.5 px-3 rounded-lg flex items-center justify-center space-x-1.5 transition-colors shadow-md">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                        </svg>
+                        <span>Get Directions</span>
+                    </button>
+                </div>
+            `;
+        }
+
         function renderSidebar() {
             const container = document.getElementById('provinceListContainer');
             container.innerHTML = '';
@@ -462,7 +563,7 @@
         }
 
         /*************************************************************
-         * 5. INTERACTIVE ACCORDION & MAP LOGIC
+         * 6. ACCORDION & MAP SELECTION
          *************************************************************/
         function toggleProvinceAccordion(index) {
             const data = clinicData[index];
@@ -470,7 +571,6 @@
             const arrow = document.getElementById(`arrow-${index}`);
             const isOpen = content.classList.contains('open');
 
-            // Close all open accordions
             document.querySelectorAll('.accordion-content').forEach(el => el.classList.remove('open'));
             document.querySelectorAll('.arrow-icon').forEach(el => el.classList.remove('rotate'));
 
@@ -499,12 +599,7 @@
                     weight: 2,
                     opacity: 1,
                     fillOpacity: 0.9
-                }).bindPopup(`
-                    <div class="p-1">
-                        <strong class="text-indigo-400 text-xs font-bold block mb-1">${c.name}</strong>
-                        <p class="text-[11px] text-slate-300 leading-tight">${c.address}</p>
-                    </div>
-                `);
+                }).bindPopup(createPopupContent(c.name, c.address, c.lat, c.lng));
 
                 marker.on('click', () => {
                     document.getElementById('coordinates').textContent = `Lat/Lng: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}`;
@@ -516,107 +611,6 @@
 
             if (bounds.length > 0) {
                 map.fitBounds(bounds, { padding: [60, 60], maxZoom: 13 });
-            }
-        }
-
-        function setRouteStatus(message, show = true) {
-            const el = document.getElementById('routeStatus');
-            el.textContent = message;
-            el.style.display = show ? 'block' : 'none';
-        }
-
-        function startLiveLocation() {
-            if (!navigator.geolocation) {
-                setRouteStatus('Live location is not supported by this browser.');
-                return;
-            }
-
-            if (locationWatchId !== null) navigator.geolocation.clearWatch(locationWatchId);
-            setRouteStatus('Getting your live location…');
-
-            locationWatchId = navigator.geolocation.watchPosition(position => {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                const accuracy = Math.max(1, position.coords.accuracy || 1);
-                userPosition = { lat, lng };
-
-                if (!userLocationMarker) {
-                    const icon = L.divIcon({ className: '', html: '<div class="user-location-pulse"></div>', iconSize: [18,18], iconAnchor: [9,9] });
-                    userLocationMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000 }).addTo(map).bindTooltip('Your live location', { direction: 'top', offset: [0,-10] });
-                } else {
-                    userLocationMarker.setLatLng([lat, lng]);
-                }
-
-                if (!userLocationAccuracy) {
-                    userLocationAccuracy = L.circle([lat, lng], { radius: accuracy, color: '#2563eb', weight: 1, opacity: .35, fillColor: '#2563eb', fillOpacity: .08 }).addTo(map);
-                } else {
-                    userLocationAccuracy.setLatLng([lat, lng]).setRadius(accuracy);
-                }
-
-                document.getElementById('coordinates').textContent = `Your location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-                if (!routeDestination) setRouteStatus('Live location active');
-            }, error => {
-                const messages = { 1: 'Location permission was denied.', 2: 'Your location could not be determined.', 3: 'Location request timed out.' };
-                setRouteStatus(messages[error.code] || 'Unable to get your location.');
-            }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 });
-        }
-
-        function loadGoogleMapsApi() {
-            if (googleMapsLoaded && window.google && google.maps) return Promise.resolve();
-            if (googleMapsLoading) return googleMapsLoading;
-            if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
-                return Promise.reject(new Error('Google Directions API key is not configured.'));
-            }
-            googleMapsLoading = new Promise((resolve, reject) => {
-                const callbackName = '__msiGoogleMapsReady';
-                window[callbackName] = () => {
-                    googleMapsLoaded = true;
-                    delete window[callbackName];
-                    resolve();
-                };
-                const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&callback=${callbackName}`;
-                script.async = true; script.defer = true;
-                script.onerror = () => { delete window[callbackName]; reject(new Error('Google Maps JavaScript API could not be loaded.')); };
-                document.head.appendChild(script);
-            });
-            return googleMapsLoading;
-        }
-
-        async function calculateRoute(lat, lng, name) {
-            if (!userPosition) {
-                startLiveLocation();
-                setRouteStatus('Waiting for your live location…');
-                return;
-            }
-            routeDestination = { lat, lng, name };
-            setRouteStatus('Calculating route…');
-            try {
-                await loadGoogleMapsApi();
-                const service = new google.maps.DirectionsService();
-                service.route({
-                    origin: userPosition,
-                    destination: { lat, lng },
-                    travelMode: google.maps.TravelMode.DRIVING,
-                    provideRouteAlternatives: false
-                }, (result, status) => {
-                    if (status !== 'OK' || !result.routes.length) {
-                        setRouteStatus('Google could not calculate a driving route.');
-                        return;
-                    }
-                    const path = result.routes[0].overview_path.map(point => [point.lat(), point.lng()]);
-                    if (routeLine) map.removeLayer(routeLine);
-                    routeLine = L.polyline(path, { color: '#2563eb', weight: 6, opacity: .9, lineCap: 'round', lineJoin: 'round' }).addTo(map);
-                    map.fitBounds(routeLine.getBounds(), { padding: [60, 60], maxZoom: 16 });
-                    const leg = result.routes[0].legs[0];
-                    const distance = leg.distance ? leg.distance.text : '';
-                    const duration = leg.duration ? leg.duration.text : '';
-                    setRouteStatus(`Route to ${name}: ${distance}${distance && duration ? ' • ' : ''}${duration}`);
-                });
-            } catch (err) {
-                setRouteStatus('');
-                const url = `https://www.google.com/maps/dir/?api=1&origin=${userPosition.lat},${userPosition.lng}&destination=${lat},${lng}&travelmode=driving`;
-                window.open(url, '_blank', 'noopener');
             }
         }
 
@@ -638,39 +632,32 @@
 
             singleMarker = L.marker([lat, lng], { icon: customIcon })
                 .addTo(map)
-                .bindPopup(`
-                    <div class="p-1">
-                        <strong class="text-indigo-400 text-xs font-bold block mb-1">${name}</strong>
-                        <p class="text-[11px] text-slate-300 leading-tight mb-2">${address}</p>
-                        <button type="button" onclick="calculateRoute(${lat}, ${lng}, '${name.replace(/'/g, "\\'")}')" style="background:#2563eb;color:white;border:0;border-radius:7px;padding:6px 9px;font-size:11px;font-weight:600;cursor:pointer;width:100%;">Get Direction</button>
-                    </div>
-                `)
+                .bindPopup(createPopupContent(name, address, lat, lng))
                 .openPopup();
 
             map.setView([lat, lng], 14, { animate: true });
-            document.getElementById('coordinates').textContent = `Lat/Lng: ${lat.toFixed(4)}, ${lat.toFixed(4)}`;
+            document.getElementById('coordinates').textContent = `Lat/Lng: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 
-            // Auto-close sidebar on mobile devices when a clinic is chosen
             if (window.innerWidth < 768) {
                 toggleSidebar();
             }
         }
 
         /*************************************************************
-         * 6. UTILITY FUNCTIONS (SEARCH & MAP TYPE)
+         * 7. UTILITY FUNCTIONS (SEARCH & MAP TYPE)
          *************************************************************/
         function filterLocations() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
             const provinceBlocks = document.querySelectorAll('.province-block');
 
-            provinceBlocks.forEach(block => {
+            provinceBlocks.forEach((block, index) => {
                 const provinceName = block.getAttribute('data-province');
                 const clinics = block.querySelectorAll('.clinic-item');
                 let hasMatch = provinceName.includes(query);
 
                 clinics.forEach(clinic => {
                     const searchData = clinic.getAttribute('data-search');
-                    if (searchData.includes(query)) {
+                    if (searchData.includes(query) || provinceName.includes(query)) {
                         clinic.style.display = 'flex';
                         hasMatch = true;
                     } else {
@@ -678,35 +665,42 @@
                     }
                 });
 
-                block.style.display = hasMatch ? 'block' : 'none';
-                
-                const accordion = block.querySelector('.accordion-content');
-                if (query.length > 1 && hasMatch && accordion) {
-                    accordion.classList.add('open');
-                } else if (query.length === 0 && accordion) {
-                    accordion.classList.remove('open');
+                if (hasMatch) {
+                    block.style.display = 'block';
+                    if (query.length > 1) {
+                        const content = document.getElementById(`accordion-${index}`);
+                        const arrow = document.getElementById(`arrow-${index}`);
+                        if (content) content.classList.add('open');
+                        if (arrow) arrow.classList.add('rotate');
+                    }
+                } else {
+                    block.style.display = 'none';
                 }
             });
+
+            if (query === '') {
+                document.querySelectorAll('.accordion-content').forEach(el => el.classList.remove('open'));
+                document.querySelectorAll('.arrow-icon').forEach(el => el.classList.remove('rotate'));
+            }
         }
 
         function changeMapType() {
             const type = document.getElementById('map-type').value;
-            map.eachLayer(layer => {
-                if (layer instanceof L.TileLayer) map.removeLayer(layer);
-            });
+            map.removeLayer(googleRoadmap);
+            map.removeLayer(googleSatellite);
+            map.removeLayer(googleTerrain);
 
-            if (type === 'streets') googleRoadmap.addTo(map);
-            else if (type === 'satellite') googleSatellite.addTo(map);
-            else if (type === 'terrain') googleTerrain.addTo(map);
+            if (type === 'satellite') {
+                googleSatellite.addTo(map);
+            } else if (type === 'terrain') {
+                googleTerrain.addTo(map);
+            } else {
+                googleRoadmap.addTo(map);
+            }
         }
 
-        function escapeHtml(text) {
-            return text.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-        }
-
-        // Initialize UI
+        // Initialize App
         renderSidebar();
-        startLiveLocation();
     </script>
 </body>
 </html>
