@@ -614,7 +614,7 @@
                     setRouteStatus(`Route to ${name}: ${distance}${distance && duration ? ' • ' : ''}${duration}`);
                 });
             } catch (err) {
-                setRouteStatus('Directions need a valid Google Maps API key. Opening Google Maps instead…');
+                setRouteStatus('');
                 const url = `https://www.google.com/maps/dir/?api=1&origin=${userPosition.lat},${userPosition.lng}&destination=${lat},${lng}&travelmode=driving`;
                 window.open(url, '_blank', 'noopener');
             }
