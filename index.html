@@ -119,9 +119,9 @@
         <!-- Layer Switcher -->
         <div class="absolute top-4 right-4 z-10 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/60 shadow-xl flex items-center">
             <select id="map-type" onchange="changeMapType()" class="bg-slate-800 text-xs text-slate-200 px-2.5 py-1.5 rounded-lg border-none focus:outline-none cursor-pointer font-medium">
-                <option value="streets">Street View</option>
-                <option value="satellite">Satellite View</option>
-                <option value="terrain">Terrain View</option>
+                <option value="streets">Google Maps</option>
+                <option value="satellite">Google Satellite</option>
+                <option value="terrain">Google Terrain</option>
             </select>
         </div>
     </main>
@@ -339,9 +339,11 @@
         const map = L.map('map', { zoomControl: false }).setView([34.5553, 69.2075], 6);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
-        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' });
-        const terrain = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: '© OpenTopoMap' });
+        // Google Maps tile layers require a valid Google Maps Platform API key.
+        // Replace YOUR_GOOGLE_MAPS_API_KEY below with your own key.
+        const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { attribution: '© Google' }).addTo(map);
+        const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { attribution: '© Google' });
+        const googleTerrain = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', { attribution: '© Google' });
 
         let singleMarker = null;
         let provinceMarkersGroup = L.layerGroup().addTo(map);
@@ -562,9 +564,9 @@
                 if (layer instanceof L.TileLayer) map.removeLayer(layer);
             });
 
-            if (type === 'streets') streets.addTo(map);
-            else if (type === 'satellite') satellite.addTo(map);
-            else if (type === 'terrain') terrain.addTo(map);
+            if (type === 'streets') googleRoadmap.addTo(map);
+            else if (type === 'satellite') googleSatellite.addTo(map);
+            else if (type === 'terrain') googleTerrain.addTo(map);
         }
 
         function escapeHtml(text) {
