@@ -1,69 +1,109 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-slate-950">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MSI Afghanistan - Interactive Clinic Locator</title>
     
+    <!-- Preconnect Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             touch-action: manipulation;
         }
 
-        /* Custom scrollbar for sidebar */
+        /* Custom Scrollbar */
         .custom-scrollbar::-webkit-scrollbar {
-            width: 5px;
+            width: 6px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
             background: rgba(15, 23, 42, 0.6);
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(99, 102, 241, 0.4);
-            border-radius: 10px;
+            background: rgba(99, 102, 241, 0.3);
+            border-radius: 9999px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(99, 102, 241, 0.8);
+            background: rgba(99, 102, 241, 0.7);
         }
 
-        /* Custom Leaflet Map Controls Modernization */
+        /* Leaflet Controls & Popups */
         .leaflet-popup-content-wrapper {
-            background: #0f172a;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
             color: #f8fafc;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
             padding: 4px;
         }
         .leaflet-popup-tip {
-            background: #0f172a;
+            background: rgba(15, 23, 42, 0.95);
         }
-        
-        /* Accordion transition utility */
+        .leaflet-container a.leaflet-popup-close-button {
+            color: #94a3b8;
+            padding: 8px 8px 0 0;
+        }
+        .leaflet-container a.leaflet-popup-close-button:hover {
+            color: #ffffff;
+        }
+
+        /* Smooth Accordion */
         .accordion-content {
-            max-height: 0;
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .accordion-content > div {
             overflow: hidden;
-            transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .accordion-content.open {
-            max-height: 1000px;
+            grid-template-rows: 1fr;
         }
         
         .arrow-icon {
-            transition: transform 0.3s ease;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .arrow-icon.rotate {
+            transform: rotate(180deg);
         }
 
-        /* Larger red pin for the user's live location */
+        /* Custom Live Location Marker Pin */
         .user-location-pin {
             position: relative;
-            width: 34px;
+            width: 36px;
             height: 44px;
         }
 
@@ -77,7 +117,7 @@
             border: 3px solid #ffffff;
             border-radius: 50% 50% 50% 0;
             transform: rotate(-45deg);
-            box-shadow: 0 3px 8px rgba(0,0,0,0.45);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5);
         }
 
         .user-location-pin .pin-dot {
@@ -99,67 +139,29 @@
             height: 22px;
             border: 2px solid #ef4444;
             border-radius: 50%;
-            opacity: 0.55;
+            opacity: 0.6;
             animation: userPinPulse 1.8s ease-out infinite;
         }
 
         @keyframes userPinPulse {
-            0% { transform: scale(0.9); opacity: 0.65; }
-            70%, 100% { transform: scale(1.65); opacity: 0; }
+            0% { transform: scale(0.9); opacity: 0.7; }
+            70%, 100% { transform: scale(2); opacity: 0; }
         }
 
-        /* Route action buttons inside clinic popups */
-        .route-actions {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 6px;
-        }
-
-        .route-action-btn {
-            width: 100%;
-            border-radius: 8px;
-            padding: 7px 9px;
-            font-size: 11px;
-            font-weight: 600;
-            color: white;
-            transition: background 0.2s ease;
-        }
-
-        .route-action-map { background: #4f46e5; }
-        .route-action-map:hover { background: #4338ca; }
-        .route-action-google { background: #2563eb; }
-        .route-action-google:hover { background: #1d4ed8; }
-        .route-action-apple { background: #374151; }
-        .route-action-apple:hover { background: #1f2937; }
-
-        .clear-route-control {
-            margin-bottom: 10px;
-        }
-
-        .clear-route-btn {
-            background: rgba(15, 23, 42, 0.92);
-            color: #f8fafc;
-            border: 1px solid rgba(99, 102, 241, 0.45);
-            border-radius: 10px;
-            padding: 9px 12px;
-            font-size: 12px;
-            font-weight: 600;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-            cursor: pointer;
-        }
-
-        .clear-route-btn:hover {
-            background: #1e293b;
-        }
-        .arrow-icon.rotate {
-            transform: rotate(180deg);
+        /* Glassmorphism Cards */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 h-screen w-screen flex overflow-hidden relative">
+<body class="bg-slate-950 text-slate-100 h-full w-full flex overflow-hidden relative antialiased">
 
-    <!-- Mobile Header/Toggle Bar -->
-    <button id="menuToggleBtn" onclick="toggleSidebar()" class="md:hidden fixed top-4 left-4 z-30 bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/60 text-white shadow-xl flex items-center justify-center focus:outline-none">
+    <!-- Mobile Navigation Toggle Button -->
+    <button id="menuToggleBtn" onclick="toggleSidebar()" aria-label="Toggle Navigation"
+            class="md:hidden fixed top-4 left-4 z-30 bg-slate-900/90 backdrop-blur-md p-3 rounded-2xl border border-slate-700/60 text-white shadow-2xl flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-indigo-500 active:scale-95 transition-all">
         <svg id="hamburgerIcon" class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
         </svg>
@@ -168,56 +170,72 @@
         </svg>
     </button>
 
-    <!-- Overlay Backdrop for Mobile Drawer -->
-    <div id="sidebarBackdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-20 hidden md:hidden transition-opacity duration-300 opacity-0"></div>
+    <!-- Drawer Overlay Backdrop -->
+    <div id="sidebarBackdrop" onclick="toggleSidebar()" 
+         class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-20 hidden md:hidden transition-opacity duration-300 opacity-0"></div>
 
-    <!-- Sidebar / Drawer -->
-    <aside id="sidebar" class="fixed md:static inset-y-0 left-0 -translate-x-full md:translate-x-0 w-80 md:w-96 bg-slate-900/95 md:bg-slate-900/90 backdrop-blur-xl border-r border-slate-800/80 flex flex-col h-full z-20 shadow-2xl transition-transform duration-300 ease-in-out">
+    <!-- Sidebar Directory -->
+    <aside id="sidebar" 
+           class="fixed md:static inset-y-0 left-0 -translate-x-full md:translate-x-0 w-80 md:w-96 bg-slate-900/95 md:bg-slate-900/90 backdrop-blur-2xl border-r border-slate-800/80 flex flex-col h-full z-20 shadow-2xl transition-transform duration-300 ease-in-out">
         
-        <div class="p-5 border-b border-slate-800 bg-slate-950/40">
-            <div class="flex items-center space-x-3 mb-3 pr-8 md:pr-0">
-                <div class="w-3 h-3 rounded-full bg-indigo-500 animate-pulse"></div>
-                <h1 class="text-lg font-bold tracking-wide text-white">MSI Afghanistan</h1>
+        <!-- Header & Search -->
+        <div class="p-5 border-b border-slate-800/80 bg-slate-950/50">
+            <div class="flex items-center space-x-3 mb-1 pr-8 md:pr-0">
+                <div class="w-3.5 h-3.5 rounded-full bg-indigo-500 animate-pulse shadow-lg shadow-indigo-500/50"></div>
+                <h1 class="text-xl font-bold tracking-tight text-white">MSI Afghanistan</h1>
             </div>
-            <p class="text-xs text-slate-400 mb-4">Interactive Health Center & Clinic Directory</p>
+            <p class="text-xs font-medium text-slate-400 mb-4 pl-6">Interactive Health Center Directory</p>
             
             <div class="relative">
                 <input type="text" id="searchInput" onkeyup="filterLocations()" placeholder="Search province, clinic, address..." 
-                       class="w-full bg-slate-800/80 text-xs text-slate-200 placeholder-slate-500 pl-9 pr-4 py-2.5 rounded-lg border border-slate-700/60 focus:outline-none focus:border-indigo-500 transition-all">
-                <svg class="w-4 h-4 text-slate-500 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       class="w-full bg-slate-800/90 text-xs text-slate-200 placeholder-slate-400 pl-10 pr-4 py-3 rounded-xl border border-slate-700/60 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner">
+                <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
             </div>
         </div>
 
-        <div id="provinceListContainer" class="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-800/50">
+        <!-- Province Accordion Directory -->
+        <div id="provinceListContainer" class="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-800/40">
         </div>
 
-        <div class="p-3 border-t border-slate-800/80 bg-slate-950/60 text-center text-[10px] text-slate-500">
+        <!-- Sidebar Footer -->
+        <div class="p-3 border-t border-slate-800/80 bg-slate-950/80 text-center text-[11px] font-medium text-slate-500 tracking-wide">
             MSI Reproductive Choices Afghanistan
         </div>
     </aside>
 
-    <!-- Main Map View -->
+    <!-- Main Map Container -->
     <main class="flex-1 h-full w-full relative">
-        <div id="map" class="h-full w-full z-0"></div>
+        <div id="map" class="h-full w-full z-0 bg-slate-950"></div>
 
-        <!-- Coordinates & Route Status Badge -->
-        <div class="absolute bottom-4 left-4 z-10 bg-slate-900/80 backdrop-blur-md text-slate-300 px-3 py-1.5 rounded-full border border-slate-700/50 text-[11px] sm:text-xs font-mono shadow-lg flex items-center space-x-2 max-w-[calc(100%-2rem)] truncate">
-            <span id="statusIndicator" class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-            <span id="coordinates" class="truncate">Lat/Lng: Select Location</span>
+        <!-- Live Status Bar -->
+        <div class="absolute bottom-5 left-5 z-10 glass-panel text-slate-200 px-4 py-2.5 rounded-2xl text-xs font-mono shadow-2xl flex items-center space-x-3 max-w-[calc(100%-2.5rem)] sm:max-w-md">
+            <span id="statusIndicator" class="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0 shadow-md shadow-emerald-400/50"></span>
+            <span id="coordinates" class="truncate font-sans font-medium text-slate-300">Lat/Lng: Select Location</span>
         </div>
 
-        <!-- Locate Me Button -->
-        <button onclick="locateUser(true)" title="Find My Location" class="absolute bottom-16 right-4 z-10 bg-slate-900/90 hover:bg-slate-800 text-indigo-400 p-3 rounded-xl border border-slate-700/60 shadow-xl transition-all focus:outline-none">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"></path>
-            </svg>
-        </button>
+        <!-- Clear Active Route Floating Button -->
+       <button id="clearRouteFloatingBtn" onclick="clearRoute()" 
+        class="hidden absolute bottom-36 right-5 z-10 glass-panel hover:bg-slate-800/90 text-rose-400 hover:text-rose-300 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-2xl border border-rose-500/20 flex items-center space-x-2 transition-all active:scale-95">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+    </svg>
+    <span>Clear Route</span>
+</button>
 
-        <!-- Layer Switcher -->
-        <div class="absolute top-4 right-4 z-10 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/60 shadow-xl flex items-center">
-            <select id="map-type" onchange="changeMapType()" class="bg-slate-800 text-xs text-slate-200 px-2.5 py-1.5 rounded-lg border-none focus:outline-none cursor-pointer font-medium">
+        <!-- Locate Me Floating Button -->
+        <button onclick="locateUser(true)" title="Find My Location" 
+        class="absolute bottom-20 right-5 z-10 glass-panel hover:bg-slate-800/90 text-indigo-400 hover:text-indigo-300 p-3.5 rounded-2xl shadow-2xl transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500/40">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"></path>
+    </svg>
+</button>
+
+        <!-- Map Layer Switcher -->
+        <div class="absolute top-5 right-5 z-10 glass-panel p-1.5 rounded-2xl shadow-2xl flex items-center">
+            <select id="map-type" onchange="changeMapType()" 
+                    class="bg-slate-800/90 text-xs text-slate-200 px-3 py-2 rounded-xl border border-slate-700/60 focus:outline-none cursor-pointer font-semibold shadow-inner">
                 <option value="streets">Google Maps</option>
                 <option value="satellite">Google Satellite</option>
                 <option value="terrain">Google Terrain</option>
@@ -225,6 +243,7 @@
         </div>
     </main>
 
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
@@ -438,15 +457,6 @@
         const map = L.map('map', { zoomControl: false }).setView([34.5553, 69.2075], 6);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        const clearRouteControl = L.control({ position: 'bottomright' });
-        clearRouteControl.onAdd = function() {
-            const div = L.DomUtil.create('div', 'clear-route-control');
-            div.innerHTML = '<button type="button" class="clear-route-btn" onclick="clearRoute()">Clear Route</button>';
-            L.DomEvent.disableClickPropagation(div);
-            return div;
-        };
-        clearRouteControl.addTo(map);
-
         const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { attribution: '© Google' }).addTo(map);
         const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { attribution: '© Google' });
         const googleTerrain = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', { attribution: '© Google' });
@@ -458,7 +468,7 @@
         let provinceMarkersGroup = L.layerGroup().addTo(map);
 
         /*************************************************************
-         * 3. USER GEOLOCATION & NAVIGATION
+         * 3. USER GEOLOCATION & ROUTING
          *************************************************************/
         function locateUser(zoomToUser = false) {
             return new Promise((resolve, reject) => {
@@ -468,7 +478,7 @@
                     return;
                 }
 
-                document.getElementById('coordinates').textContent = "Locating your position...";
+                document.getElementById('coordinates').textContent = "Acquiring position...";
 
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
@@ -479,7 +489,7 @@
 
                         if (!userMarker) {
                             const userIcon = L.divIcon({
-                                className: 'user-pin',
+                                className: 'user-pin-marker',
                                 html: `
                                     <div class="user-location-pin">
                                         <span class="pin-pulse"></span>
@@ -487,13 +497,13 @@
                                         <span class="pin-dot"></span>
                                     </div>
                                 `,
-                                iconSize: [34, 44],
-                                iconAnchor: [17, 43]
+                                iconSize: [36, 44],
+                                iconAnchor: [18, 43]
                             });
 
                             userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
                                 .addTo(map)
-                                .bindPopup(`<div class="p-1 font-bold text-cyan-400 text-xs">Your Current Location</div>`);
+                                .bindPopup(`<div class="p-1 font-bold text-rose-400 text-xs">Your Current Location</div>`);
                         } else {
                             userMarker.setLatLng([userLocation.lat, userLocation.lng]);
                         }
@@ -507,7 +517,7 @@
                         resolve(userLocation);
                     },
                     (error) => {
-                        alert("Unable to retrieve your location. Please ensure location permissions are granted.");
+                        alert("Unable to retrieve your location. Please ensure GPS/location permissions are enabled.");
                         document.getElementById('coordinates').textContent = "Location Access Denied";
                         reject(error);
                     },
@@ -517,7 +527,6 @@
         }
 
         async function getDirections(destLat, destLng, destName) {
-            // If the user chooses "Show Route on Map", make sure we have their location.
             if (!userLocation) {
                 try {
                     await locateUser(false);
@@ -526,7 +535,7 @@
                 }
             }
 
-            document.getElementById('coordinates').textContent = "Calculating route...";
+            document.getElementById('coordinates').textContent = "Calculating optimal route...";
 
             const url = `https://router.project-osrm.org/route/v1/driving/${userLocation.lng},${userLocation.lat};${destLng},${destLat}?overview=full&geometries=geojson`;
 
@@ -544,17 +553,19 @@
 
                     routePolyline = L.polyline(coords, {
                         color: '#6366f1',
-                        weight: 5,
-                        opacity: 0.8,
-                        lineCap: 'round'
+                        weight: 6,
+                        opacity: 0.85,
+                        lineCap: 'round',
+                        lineJoin: 'round'
                     }).addTo(map);
 
-                    map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+                    map.fitBounds(routePolyline.getBounds(), { padding: [60, 60] });
 
                     const distanceKm = (route.distance / 1000).toFixed(1);
                     const durationMin = Math.round(route.duration / 60);
 
                     document.getElementById('coordinates').textContent = `Route to ${destName}: ${distanceKm} km (~${durationMin} mins)`;
+                    document.getElementById('clearRouteFloatingBtn').classList.remove('hidden');
                 } else {
                     alert("Could not calculate driving route.");
                 }
@@ -568,6 +579,8 @@
                 map.removeLayer(routePolyline);
                 routePolyline = null;
             }
+
+            document.getElementById('clearRouteFloatingBtn').classList.add('hidden');
 
             if (userLocation) {
                 document.getElementById('coordinates').textContent =
@@ -588,45 +601,45 @@
         }
 
         function showRouteOptions(destLat, destLng, destName) {
-            const existing = document.getElementById('routeOptionsModal');
-            if (existing) existing.remove();
+            closeRouteOptions();
 
             const modal = document.createElement('div');
             modal.id = 'routeOptionsModal';
-            modal.className = 'fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4';
+            modal.className = 'fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 transition-opacity animate-fade-in';
             modal.innerHTML = `
-                <div class="w-full max-w-xs bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-4">
-                    <div class="flex items-center justify-between mb-3">
+                <div class="w-full max-w-xs bg-slate-900 border border-slate-700/80 rounded-3xl shadow-2xl p-5 space-y-4">
+                    <div class="flex items-start justify-between border-b border-slate-800 pb-3">
                         <div>
                             <div class="text-sm font-bold text-white">Get Directions</div>
-                            <div class="text-[10px] text-slate-400 mt-0.5">${destName}</div>
+                            <div class="text-xs text-slate-400 mt-0.5 line-clamp-1">${destName}</div>
                         </div>
-                        <button type="button" onclick="closeRouteOptions()" class="text-slate-400 hover:text-white text-lg leading-none">×</button>
+                        <button type="button" onclick="closeRouteOptions()" class="text-slate-400 hover:text-white text-xl leading-none font-bold">×</button>
                     </div>
 
-                    <div class="space-y-2">
+                    <div class="space-y-2.5">
                         <button type="button"
                                 onclick="closeRouteOptions(); getDirections(${destLat}, ${destLng}, '${escapeHtml(destName)}')"
-                                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2.5 px-3 rounded-lg transition-colors">
-                            Show Route on Map
+                                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                            <span>Show Route on Map</span>
                         </button>
 
                         <button type="button"
                                 onclick="closeRouteOptions(); openGoogleMaps(${destLat}, ${destLng})"
-                                class="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold py-2.5 px-3 rounded-lg transition-colors">
-                            Open in Google Maps
+                                class="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center space-x-2">
+                            <span>Open in Google Maps</span>
                         </button>
 
                         <button type="button"
                                 onclick="closeRouteOptions(); openAppleMaps(${destLat}, ${destLng})"
-                                class="w-full bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold py-2.5 px-3 rounded-lg transition-colors">
-                            Open in Apple Maps
+                                class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-3 px-4 rounded-xl transition-all border border-slate-700 flex items-center justify-center space-x-2">
+                            <span>Open in Apple Maps</span>
                         </button>
                     </div>
 
                     <button type="button"
                             onclick="closeRouteOptions()"
-                            class="w-full mt-2 text-[11px] text-slate-400 hover:text-slate-200 py-1">
+                            class="w-full text-center text-xs font-medium text-slate-400 hover:text-slate-200 pt-1">
                         Cancel
                     </button>
                 </div>
@@ -671,7 +684,7 @@
         }
 
         /*************************************************************
-         * 5. RENDER SIDEBAR & INTERACTION
+         * 5. RENDER SIDEBAR DIRECTORY & POPUPS
          *************************************************************/
         function escapeHtml(str) {
             return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -679,11 +692,12 @@
 
         function createPopupContent(name, address, lat, lng) {
             return `
-                <div class="p-1">
-                    <strong class="text-indigo-400 text-xs font-bold block mb-1">${name}</strong>
-                    <p class="text-[11px] text-slate-300 leading-tight mb-3">${address}</p>
+                <div class="p-2 min-w-[200px]">
+                    <span class="inline-block text-[10px] font-semibold text-indigo-400 uppercase tracking-wider mb-1">MSI Health Center</span>
+                    <h3 class="text-sm font-bold text-white mb-1.5 leading-snug">${name}</h3>
+                    <p class="text-xs text-slate-300 leading-normal mb-3 font-normal">${address}</p>
                     <button onclick="showRouteOptions(${lat}, ${lng}, '${escapeHtml(name)}')" 
-                            class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold py-1.5 px-3 rounded-lg flex items-center justify-center space-x-1.5 transition-colors shadow-md">
+                            class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center space-x-2 transition-all shadow-lg shadow-indigo-600/30">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
                         </svg>
@@ -699,7 +713,7 @@
 
             clinicData.forEach((data, index) => {
                 const count = data.clinics.length;
-                const statusBadge = data.status ? `<span class="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-normal ml-2">${data.status}</span>` : '';
+                const statusBadge = data.status ? `<span class="text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-medium ml-2">${data.status}</span>` : '';
 
                 const provinceItem = document.createElement('div');
                 provinceItem.className = "province-block";
@@ -707,10 +721,10 @@
 
                 let clinicsHTML = '';
                 if (count === 0) {
-                    clinicsHTML = `<div class="p-3 text-xs text-slate-500 italic pl-6 bg-slate-950/40">No clinics registered for this area.</div>`;
+                    clinicsHTML = `<div class="p-3 text-xs text-slate-500 italic pl-6 bg-slate-950/40">No registered clinics in this area.</div>`;
                 } else {
                     clinicsHTML = data.clinics.map(c => `
-                        <div class="clinic-item group flex flex-col p-3 pl-7 hover:bg-indigo-600/10 border-b border-slate-800/30 cursor-pointer transition-all duration-200" 
+                        <div class="clinic-item group flex flex-col p-3.5 pl-7 hover:bg-indigo-600/10 border-b border-slate-800/20 cursor-pointer transition-all duration-200" 
                              onclick="selectClinic(${c.lat}, ${c.lng}, '${escapeHtml(c.name)}', '${escapeHtml(c.address)}')"
                              data-search="${c.name.toLowerCase()} ${c.address.toLowerCase()}">
                             <div class="text-xs font-semibold text-slate-200 group-hover:text-indigo-400 flex items-center justify-between">
@@ -719,27 +733,29 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                 </svg>
                             </div>
-                            <div class="text-[11px] text-slate-400 mt-1 line-clamp-1">${c.address}</div>
+                            <div class="text-[11px] text-slate-400 mt-1 line-clamp-1 leading-relaxed">${c.address}</div>
                         </div>
                     `).join('');
                 }
 
                 provinceItem.innerHTML = `
-                    <button class="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-slate-800/40 transition-colors duration-150 focus:outline-none" 
+                    <button class="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-800/40 transition-colors duration-150 focus:outline-none" 
                             onclick="toggleProvinceAccordion(${index})">
                         <div class="flex items-center">
-                            <span class="text-xs font-semibold text-slate-200 tracking-wide">${data.province}</span>
+                            <span class="text-xs font-bold text-slate-200 tracking-wide">${data.province}</span>
                             ${statusBadge}
                         </div>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700/50">${count}</span>
-                            <svg id="arrow-${index}" class="arrow-icon w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700/60">${count}</span>
+                            <svg id="arrow-${index}" class="arrow-icon w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                             </svg>
                         </div>
                     </button>
-                    <div id="accordion-${index}" class="accordion-content bg-slate-950/30 divide-y divide-slate-800/20">
-                        ${clinicsHTML}
+                    <div id="accordion-${index}" class="accordion-content bg-slate-950/40">
+                        <div class="divide-y divide-slate-800/20">
+                            ${clinicsHTML}
+                        </div>
                     </div>
                 `;
                 container.appendChild(provinceItem);
@@ -782,7 +798,7 @@
                     color: "#ffffff",
                     weight: 2,
                     opacity: 1,
-                    fillOpacity: 0.9
+                    fillOpacity: 0.95
                 }).bindPopup(createPopupContent(c.name, c.address, c.lat, c.lng));
 
                 marker.on('click', () => {
@@ -805,13 +821,13 @@
             const customIcon = L.divIcon({
                 className: 'custom-pin',
                 html: `
-                    <div class="relative flex items-center justify-center w-6 h-6">
+                    <div class="relative flex items-center justify-center w-7 h-7">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-4 w-4 bg-indigo-600 border-2 border-white shadow-lg"></span>
+                        <span class="relative inline-flex rounded-full h-4 w-4 bg-indigo-600 border-2 border-white shadow-xl"></span>
                     </div>
                 `,
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
             });
 
             singleMarker = L.marker([lat, lng], { icon: customIcon })
@@ -828,7 +844,7 @@
         }
 
         /*************************************************************
-         * 7. UTILITY FUNCTIONS (SEARCH & MAP TYPE)
+         * 7. SEARCH & MAP TILES
          *************************************************************/
         function filterLocations() {
             const query = document.getElementById('searchInput').value.toLowerCase().trim();
@@ -883,7 +899,7 @@
             }
         }
 
-        // Initialize App
+        // Initialize Web Application
         renderSidebar();
     </script>
 </body>
