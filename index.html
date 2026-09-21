@@ -503,7 +503,10 @@
 
                             userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
                                 .addTo(map)
-                                .bindPopup(`<div class="p-1 font-bold text-rose-400 text-xs">Your Current Location</div>`);
+                                .bindPopup(`<div class="p-1 font-bold text-rose-400 text-xs flex items-center space-x-1.5">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></span>
+            <span>Your Current Location</span>
+        </div>`);
                         } else {
                             userMarker.setLatLng([userLocation.lat, userLocation.lng]);
                         }
